@@ -1,0 +1,5 @@
+config amneziawg 'config'
+    option last_profile ''
+    option dns_mode 'default'
+    option enabled '0'
+    option ipv6_disabled '1'

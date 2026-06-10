@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Archives
+*.tar.gz
+*.zip
+
+# Backup files
+*.bak
+*.orig
+*~
+*.swp
+*.tmp
+*.fixed*
+*.v2
+*.v3
+*.v4
+
+# Binaries (will be published in Releases)
+amneziawg-go
+awg-new
+sing-box

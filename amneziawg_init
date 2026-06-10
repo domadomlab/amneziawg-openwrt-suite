@@ -1,0 +1,39 @@
+#!/bin/sh /etc/rc.common
+START=99
+
+start() {
+    # 1. Apply IPv6 state
+    IPV6_DIS=$(uci -q get amneziawg.config.ipv6_disabled)
+    if [ "$IPV6_DIS" = "1" ]; then
+        uci set network.globals.disable_ipv6='1'
+        uci commit network
+    fi
+
+    # 2. Apply DNS mode
+    DNS_MODE=$(uci -q get amneziawg.config.dns_mode)
+    if [ -n "$DNS_MODE" ]; then
+        /usr/bin/amneziawg-dns.sh "on_$DNS_MODE" 2>/dev/null || /usr/bin/amneziawg-dns.sh "$DNS_MODE"
+    fi
+
+    # 3. Start VPN if enabled
+    ENABLED=$(uci -q get amneziawg.config.enabled)
+    LAST_PROF=$(uci -q get amneziawg.config.last_profile)
+    
+    if [ "$ENABLED" = "1" ]; then
+        if [ -n "$LAST_PROF" ] && [ -f "/etc/amneziawg/profiles/$LAST_PROF" ]; then
+            /usr/bin/amneziawg-switch.sh "$LAST_PROF" &
+        else
+            /usr/bin/amneziawg-start.sh &
+        fi
+    fi
+}
+
+stop() {
+    /usr/bin/amneziawg-stop.sh
+}
+
+restart() {
+    stop
+    sleep 2
+    start
+}
