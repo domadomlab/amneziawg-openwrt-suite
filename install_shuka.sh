@@ -35,6 +35,16 @@ chmod +x /etc/init.d/sing-box 2>/dev/null
 
 # 6. Enable and Start
 /etc/init.d/sing-box enable
+/etc/init.d/rpcd restart
+# Note: We don't force start here to avoid routing conflicts with existing VPNs.
+# The user should start it from the LuCI UI.
+
+# 7. Cleanup LuCI cache
+rm -rf /tmp/luci-indexcache /tmp/luci-modulecache
+
+echo "[OK] Shuka installation finished."
+echo "[INFO] New UI: Services -> Shuka VPN"
+e
 # Note: We don't force start here to avoid routing conflicts with existing VPNs.
 # The user should start it from the LuCI UI.
 

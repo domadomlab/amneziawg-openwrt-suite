@@ -5,35 +5,43 @@ AWG_TOOL="/usr/bin/awg-new"
 CONF="/etc/amneziawg/awg0.conf"
 LOG="/tmp/awg_health.log"
 
-echo "[$(date)] --- NEW VPN START ATTEMPT ---" > "$LOG"
+echo "[$(date)] --- STARTING VPN ---" > "$LOG"
 
-# 1. Полная очистка перед стартом
-/usr/bin/amneziawg-stop.sh >/dev/null 2>&1
-sleep 2
+# 1. Stop if running (fast)
+ip link delete "$IFACE" 2>/dev/null
+killall amneziawg-go 2>/dev/null
 
-# 2. Создание чистого конфига для setconf (убираем Address и лишнее)
+# 2. Create clean config for setconf
 grep -vE "Address|DNS|^I[2-5]" "$CONF" | tr -d '\r' > /tmp/awg_clean.conf
 
-# 3. Запуск бинарного файла
-"$AWG_BIN" "$IFACE" &
-for i in $(seq 1 10); do
-    ip link show "$IFACE" >/dev/null 2>&1 && break
-    sleep 1
-done
+# 3. Create interface (Kernel first, then Go)
+if ! ip link show "$IFACE" >/dev/null 2>&1; then
+    ip link add dev "$IFACE" type amneziawg 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "Kernel module missing, using userspace..." >> "$LOG"
+        "$AWG_BIN" "$IFACE" &
+        # Wait just a bit for Go driver
+        for i in 1 2 3 4 5; do
+            ip link show "$IFACE" >/dev/null 2>&1 && break
+            sleep 0.5
+        done
+    fi
+fi
 
 if ! ip link show "$IFACE" >/dev/null 2>&1; then
-    echo "[$(date)] FAILED to create interface" >> "$LOG"
+    echo "FAILED to create interface" >> "$LOG"
     exit 1
 fi
 
-# 4. Применение конфигурации
+# 4. Apply config (Fast)
 "$AWG_TOOL" setconf "$IFACE" /tmp/awg_clean.conf
 IP_ADDR=$(grep -i "Address" "$CONF" | awk -F'[ =]+' '{print $2}' | tr -d '\r ')
 ip addr add "${IP_ADDR:-10.8.1.23/32}" dev "$IFACE"
 ip link set mtu 1280 dev "$IFACE"
 ip link set "$IFACE" up
 
-# 5. Маршрутизация
+# 5. Routes and Firewall (Fast)
+# Get gateway only if needed
 GW=$(ip route show default | awk '/default/ {print $3}' | head -n1)
 DEV=$(ip route show default | awk '/default/ {print $5}' | head -n1)
 ENDPOINT=$(grep -i "Endpoint" "$CONF" | awk -F'[ =]+' '{print $2}' | tr -d '\r ')
@@ -45,20 +53,18 @@ fi
 ip route add 0.0.0.0/1 dev "$IFACE"
 ip route add 128.0.0.0/1 dev "$IFACE"
 
-# 6. Firewall NAT & Anti-Leak (Kill Switch)
 iptables -t nat -I POSTROUTING -o "$IFACE" -j MASQUERADE
 iptables -I FORWARD -i br-lan -o "$IFACE" -j ACCEPT
 iptables -I FORWARD -i "$IFACE" -o br-lan -j ACCEPT
 
-# Блокировка IPv6 для предотвращения утечек местоположения (важно для Google/Gemini)
-ip6tables -I FORWARD -j REJECT
-sysctl -w net.ipv6.conf.all.disable_ipv6=1
-sysctl -w net.ipv6.conf.default.disable_ipv6=1
+# Disable IPv6 (Fast)
+sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null
+sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null
 
-# 7. Принудительный DNS внутри туннеля
-/usr/bin/amneziawg-dns.sh on
+# 6. DNS and Health Check (Background - don't wait!)
+(
+    /usr/bin/amneziawg-dns.sh on >/dev/null 2>&1
+    /usr/bin/amneziawg-health-check.sh &
+) &
 
-# 8. Запуск проверки здоровья (Health Check)
-# Запускаем в фоне, чтобы не блокировать вывод, но лог будет доступен
-/usr/bin/amneziawg-health-check.sh &
-echo "[$(date)] Setup finished. Verification in progress..." >> "$LOG"
+echo "OK"

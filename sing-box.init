@@ -18,7 +18,9 @@ start_service() {
     procd_set_param respawn
     procd_close_instance
 
-    # Настройка маршрутизации LAN -> VPN в обход mwan3/vpn-policy-routing
+    # Настройка маршрутизации LAN -> VPN
+    sleep 2 # Ждем поднятия tun интерфейса
+    ip route add default dev tun-shuka table 2022 2>/dev/null
     ip rule add iif br-lan lookup 2022 pref 5000 2>/dev/null
     iptables -I FORWARD -o tun-shuka -j ACCEPT 2>/dev/null
     iptables -I FORWARD -i tun-shuka -j ACCEPT 2>/dev/null

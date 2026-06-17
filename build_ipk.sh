@@ -5,7 +5,7 @@ VERSION="4.0.2"
 ARCH="aarch64_cortex-a53"
 BUILD_DIR="/tmp/ipk_build"
 TARGET_IPK="${PKG_NAME}_${VERSION}_${ARCH}.ipk"
-SRC_DIR="/home/dom/.gemini_storage/1/amneziawg-openwrt-deploy"
+SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "Building IPK: $TARGET_IPK"
 
@@ -51,6 +51,8 @@ cat <<POST_EOF > $BUILD_DIR/control/postinst
 #!/bin/sh
 /etc/init.d/sing-box enable
 /etc/init.d/amneziawg enable
+/etc/init.d/rpcd restart
+[ -f /lib/ld-musl-aarch64.so.1 ] && [ ! -f /lib/ld-linux-aarch64.so.1 ] && ln -s /lib/ld-musl-aarch64.so.1 /lib/ld-linux-aarch64.so.1
 [ -f /etc/sing-box/config.json ] || cp /etc/sing-box/config.json.template /etc/sing-box/config.json
 rm -rf /tmp/luci-indexcache /tmp/luci-modulecache
 exit 0

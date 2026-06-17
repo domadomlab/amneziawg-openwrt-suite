@@ -28,6 +28,8 @@ cp amneziawg_init /etc/init.d/amneziawg
 # Настройка LuCI
 mkdir -p /usr/lib/lua/luci/controller/
 cp amneziawg.lua /usr/lib/lua/luci/controller/amneziawg.lua
+mkdir -p /usr/share/rpcd/acl.d/
+cp luci-app-amnezia-shuka.json /usr/share/rpcd/acl.d/
 
 # Установка конфига UCI
 [ -f /etc/config/amneziawg ] || cp amneziawg_config.uci /etc/config/amneziawg
@@ -57,6 +59,7 @@ EOF
 # 5. Права и автозагрузка
 chmod +x /usr/bin/amneziawg* /usr/bin/awg* /etc/init.d/amneziawg
 /etc/init.d/amneziawg enable
+/etc/init.d/rpcd restart
 /etc/init.d/firewall restart
 
 # Очистка кэша LuCI
