@@ -6,6 +6,7 @@ function index()
     entry({"admin", "services", "shuka", "sync"}, call("action_sync"), nil).leaf = true
     entry({"admin", "services", "shuka", "data"}, call("action_data"), nil).leaf = true
     entry({"admin", "services", "shuka", "select"}, call("action_select"), nil).leaf = true
+    entry({"admin", "services", "shuka", "force_ping"}, call("action_force_ping"), nil).leaf = true
     entry({"admin", "services", "shuka", "start"}, call("action_start"), nil).leaf = true
     entry({"admin", "services", "shuka", "stop"}, call("action_stop"), nil).leaf = true
     entry({"admin", "services", "shuka", "amnezia_upload"}, call("action_amnezia_upload"), nil).leaf = true
@@ -281,6 +282,22 @@ function action_gui()
                 })
                 .catch(e => console.error("Data error:", e));
         }
+        function forcePing() {
+            const btn = event.target;
+            btn.textContent = "⏳ ПРОВЕРКА...";
+            btn.disabled = true;
+            fetch("shuka/force_ping").then(() => {
+                updateData();
+                setTimeout(() => {
+                    btn.textContent = "🔄 ПРОВЕРИТЬ ДОСТУПНОСТЬ";
+                    btn.disabled = false;
+                }, 1000);
+            }).catch(() => {
+                btn.textContent = "🔄 ПРОВЕРИТЬ ДОСТУПНОСТЬ";
+                btn.disabled = false;
+            });
+        }
+
         function sync() {
             const url = document.getElementById('sub-url').value;
             if (!url) return;
@@ -349,7 +366,7 @@ function action_gui()
                 <pre id="log-output">]] .. util.exec("logread | grep -Ei 'sing-box|amnezia' | tail -n 10") .. [[</pre>
             </div>
             <div>
-                <h3 class="section-title">🌍 Выбор Сервера</h3>
+                <div style="display:flex; justify-content:space-between; align-items:center;"><h3 class="section-title" style="margin:0;">🌍 Выбор Сервера</h3><button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="forcePing()">🔄 ПРОВЕРИТЬ ДОСТУПНОСТЬ</button></div>
                 <div id="server-list" class="server-list">Загрузка...</div>
             </div>
         </div>
@@ -375,4 +392,10 @@ d
 function action_stop()
     os.execute("/usr/bin/shuka_manager.py stop >/dev/null 2>&1 &")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "shuka"))
+end
+
+function action_force_ping()
+    os.execute("rm -f /tmp/ping_* 2>/dev/null")
+    luci.http.prepare_content("application/json")
+    luci.http.write_json({status = "ok"})
 end
