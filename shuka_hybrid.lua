@@ -136,6 +136,21 @@ function action_data()
         active_tag = "Amnezia-Profile" -- Default fallback or logic to match
     end
     
+    local function get_pings(server_list)
+        local pings = {}
+        for _, s in ipairs(server_list) do
+            local ip = s.server or "127.0.0.1"
+            local ping_val = -1
+            if ip and ip ~= "" then
+                local res = util.exec("ping -c 1 -W 1 " .. ip .. " 2>/dev/null | grep -o 'time=[0-9.]*' | cut -d= -f2")
+                local p = tonumber(res)
+                if p then ping_val = math.floor(p + 0.5) end
+            end
+            pings[s.tag] = ping_val
+        end
+        return pings
+    end
+
     local is_running = (util.exec("pgrep sing-box") ~= "") or (handshake > 0)
     
     local data = {
@@ -143,6 +158,7 @@ function action_data()
         tx = strip(tx),
         ip = strip(ip),
         servers = servers,
+        pings = get_pings(servers),
         active_tag = active_tag,
         is_running = is_running,
         interface_up = interface_up
@@ -241,8 +257,19 @@ function action_gui()
                                 delBtn = `<button class="btn-del-mini" onclick="event.stopPropagation(); deleteAmnezia('${s.tag}')">✕</button>`;
                             }
 
+                            let pingBadge = "";
+                            if (data.pings div.innerHTML = '<div style="display:flex; align-items:center;">' + (isActive ? '<span class="active-dot"></span>' : '') +div.innerHTML = '<div style="display:flex; align-items:center;">' + (isActive ? '<span class="active-dot"></span>' : '') + data.pings[s.tag] !== undefined) {
+                                let p = data.pings[s.tag];
+                                if (p >= 0) {
+                                    let color = p < 100 ? "var(--success)" : (p < 200 ? "var(--warning)" : "var(--danger)");
+                                    pingBadge = `<span style="margin-left: 8px; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: ${color}; color: white; font-weight: bold;">${p} ms</span>`;
+                                } else {
+                                    pingBadge = `<span style="margin-left: 8px; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--danger); color: white; font-weight: bold;">✕</span>`;
+                                }
+                            }
+
                             div.innerHTML = '<div style="display:flex; align-items:center;">' + (isActive ? '<span class="active-dot"></span>' : '') + 
-                                           '<strong>' + s.tag + '</strong></div>' +
+                                           '<strong>' + s.tag + '</strong>' + pingBadge + '</div>' +
                                            '<div style="display:flex; align-items:center;"><span style="font-size:10px; color:var(--text-dim)">' + s.type.toUpperCase() + '</span>' + delBtn + '</div>';
                             list.appendChild(div);
                         });
